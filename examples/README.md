@@ -21,3 +21,7 @@ In the directory of a given example, run its start script.
 ```shell
 pnpm start
 ```
+
+## Available examples
+
+- `compat-send-transaction` – send lamports using `@solana/compat` as a drop-in replacement for `@solana/web3.js`.

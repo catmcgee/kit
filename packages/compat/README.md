@@ -11,48 +11,62 @@
 
 # @solana/compat
 
-This package contains utilities for converting from legacy web3js classes to the new data structures in Kit. It can be used standalone, but it is also exported as part of Kit [`@solana/kit`](https://github.com/anza-xyz/kit/tree/main/packages/kit).
+`@solana/compat` is a drop-in bridge from `@solana/web3.js` to Kit. Swap your web3.js
+imports for `@solana/compat` and keep shipping while you migrate to Kit primitives at
+your own pace.
 
-## Functions
-
-### `fromLegacyPublicKey()`
-
-This can be used to convert a legacy `PublicKey` object to an `Address` type
+## Quickstart
 
 ```ts
-import { fromLegacyPublicKey } from '@solana/compat';
-const address = fromLegacyPublicKey(new PublicKey('49XBVQsvSW44ULKL9qufS9YqQPbdcps1TQRijx4FQ9sH'));
+import { Connection, Keypair, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/compat';
+
+const connection = new Connection('http://127.0.0.1:8899', 'confirmed');
+const payer = Keypair.generate();
+const recipient = Keypair.generate();
+
+// Fund the payer using any method you like (eg. Kit's `createSolanaRpc().requestAirdrop`).
+
+const latestBlockhash = await connection.getLatestBlockhash('confirmed');
+const tx = new Transaction({
+    feePayer: payer.publicKey,
+    recentBlockhash: latestBlockhash.value.blockhash,
+}).add(
+    SystemProgram.transfer({
+        fromPubkey: payer.publicKey,
+        toPubkey: recipient.publicKey,
+        lamports: 1_000_000,
+    }),
+);
+
+await sendAndConfirmTransaction(connection, tx, [payer], { commitment: 'confirmed' });
 ```
 
-### `fromLegacyKeypair()`
+## API coverage (phase 0)
 
-This can be used to convert a legacy `Keypair` object to a native Ed25519 `CryptoKeyPair` object
+| Area | Status |
+| --- | --- |
+| Connection | `getLatestBlockhash`, `getBalance`, `getAccountInfo`, `getProgramAccounts`, `getSignatureStatuses`, `sendRawTransaction`, `confirmTransaction`, `simulateTransaction` |
+| Primitives | Re-export `PublicKey`, `Keypair`, `Transaction`, `VersionedTransaction`, `TransactionInstruction` |
+| Bridges | `toAddress`, `toPublicKey`, `toKitSigner`, `toWeb3Instruction`, `fromWeb3Instruction` |
+| Programs | `SystemProgram.transfer` |
+| Utils | `LAMPORTS_PER_SOL`, `sendAndConfirmTransaction`, `compileFromCompat` |
+| Legacy helpers | `fromLegacyPublicKey`, `fromLegacyKeypair`, `fromVersionedTransaction`, `fromLegacyTransactionInstruction` |
 
-```ts
-import { fromLegacyKeypair } from '@solana/compat';
-const { privateKey, publicKey } = await fromLegacyKeypair(Keypair.generate());
-```
+Everything is tree-shakable (`"sideEffects": false`) and ships with CJS, ESM, and type
+declarations.
 
-### `fromVersionedTransaction()`
+## Converter utilities
 
-This can be used to convert a legacy `VersionedTransaction` object to a `Transaction` object.
+The original converter helpers still ship unchanged:
 
-```ts
-import { fromVersionedTransaction } from '@solana/compat';
+- `fromLegacyPublicKey(publicKey)` → `Address`
+- `fromLegacyKeypair(keypair)` → `CryptoKeyPair`
+- `fromLegacyTransactionInstruction(instruction)` → Kit `Instruction`
+- `fromVersionedTransaction(transaction)` → Kit `Transaction`
 
-// imagine a function that returns a legacy `VersionedTransaction`
-const legacyVersionedTransaction = getMyLegacyVersionedTransaction();
-const transaction = fromVersionedTransaction(legacyVersionedTransaction);
-```
+## Out-of-scope (documented)
 
-### `fromLegacyTransactionInstruction()`
+- Subscriptions (`onLogs`, `onAccountChange`) are still provided by `@solana/web3.js`.
+- Legacy `partialSign` mutation semantics are *not* guaranteed; prefer Kit signer lists.
 
-This can be used to convert a legacy `TransactionInstruction` object to a `Instruction` object.
-
-```ts
-import { fromLegacyTransactionInstruction } from '@solana/compat';
-
-// imagine a function that returns a legacy `TransactionInstruction`
-const legacyInstruction = getMyLegacyInstruction();
-const instruction = fromLegacyTransactionInstruction(legacyInstruction);
-```
+Looking for more Kit-first patterns? Check [the Kit docs](https://www.solanakit.com/).
