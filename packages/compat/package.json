@@ -88,6 +88,7 @@
         "@solana/transaction-messages": "workspace:*",
         "@solana/transactions": "workspace:*",
         "bs58": "^4.0.1",
+        "tweetnacl": "^1.0.3",
         "ws": "^8.18.0"
     },
     "devDependencies": {

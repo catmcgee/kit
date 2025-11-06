@@ -15,8 +15,8 @@ describe('bridges', () => {
     });
 
     it('converts kit instructions to web3 instructions and back', () => {
-        const programId = new PublicKey('11111111111111111111111111111111');
-        const account = new PublicKey('22222222222222222222222222222222');
+        const programId = Keypair.generate().publicKey;
+        const account = Keypair.generate().publicKey;
         const kitInstruction = Object.freeze({
             accounts: [
                 Object.freeze({

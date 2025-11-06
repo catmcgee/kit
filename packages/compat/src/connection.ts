@@ -1,6 +1,7 @@
 import { createSolanaRpc, type SolanaRpcApi } from '@solana/rpc';
 import type { Rpc } from '@solana/rpc-spec';
 import type { Base64EncodedDataResponse, Commitment, DataSlice } from '@solana/rpc-types';
+import { getBase64Decoder, getBase64Encoder } from '@solana/codecs-strings';
 import {
     type AccountInfo,
     Commitment as Web3Commitment,
@@ -107,20 +108,8 @@ function toNullableNumber(value: bigint | number | null | undefined): number | n
     return typeof value === 'number' ? value : Number(value);
 }
 
-function decodeBase64(encoded: string): Uint8Array {
-    return Buffer.from(encoded, 'base64');
-}
-
-function encodeBase64(bytes: Uint8Array): string {
-    if (typeof Buffer !== 'undefined') {
-        return Buffer.from(bytes).toString('base64');
-    }
-    let binary = '';
-    for (let i = 0; i < bytes.length; i += 1) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return typeof btoa === 'function' ? btoa(binary) : '';
-}
+const base64Encoder = getBase64Encoder();
+const base64Decoder = getBase64Decoder();
 
 function decodeAccountData(data: Base64EncodedDataResponse | Uint8Array): Uint8Array {
     if (data instanceof Uint8Array) {
@@ -133,7 +122,8 @@ function decodeAccountData(data: Base64EncodedDataResponse | Uint8Array): Uint8A
         case 'base64+zstd':
         case 'base64':
         default:
-            return decodeBase64(encoded);
+            const decoded = base64Encoder.encode(encoded);
+            return decoded instanceof Uint8Array ? decoded : Uint8Array.from(decoded);
     }
 }
 
@@ -151,7 +141,7 @@ function mapAccountInfo(raw: RpcAccountInfo): AccountInfo<Buffer | object> {
 function mapSimulatedAccountInfo(raw: RpcAccountInfo): SimulatedTransactionAccountInfo {
     const bytes = decodeAccountData(raw.data);
     return {
-        data: [encodeBase64(bytes), 'base64'],
+        data: [base64Decoder.decode(bytes), 'base64'],
         executable: raw.executable,
         lamports: toNumber(raw.lamports),
         owner: raw.owner,
@@ -209,7 +199,7 @@ function toRpcAccountInfo(value: unknown): RpcAccountInfo | null {
 }
 
 function toBase64WireTransaction(bytes: Uint8Array): Base64EncodedWireTransaction {
-    return encodeBase64(bytes) as unknown as Base64EncodedWireTransaction;
+    return base64Decoder.decode(bytes) as unknown as Base64EncodedWireTransaction;
 }
 
 function convertSendOptions(options?: SendOptions): Omit<Parameters<SolanaRpcApi['sendTransaction']>[1], 'encoding'> | undefined {
@@ -377,7 +367,7 @@ export class Connection {
 
     async sendRawTransaction(rawTransaction: Uint8Array | number[] | Transaction | VersionedTransaction, options?: SendOptions): Promise<string> {
         const bytes = serializeTransactionBytes(rawTransaction);
-        const payload = encodeBase64(bytes);
+        const payload = toBase64WireTransaction(bytes);
         const overrides = convertSendOptions(options);
         const config = {
             encoding: 'base64' as const,
