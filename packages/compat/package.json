@@ -89,7 +89,7 @@
         "@solana/transactions": "workspace:*",
         "bs58": "^4.0.1",
         "tweetnacl": "^1.0.3",
-        "ws": "^8.18.0"
+        "ws": "^8.21.0"
     },
     "devDependencies": {
         "@solana/web3.js": "^1"
